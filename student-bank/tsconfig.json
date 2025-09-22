@@ -6,7 +6,7 @@
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "esModuleInterop": false,
-    "outDir": "dist"
+    "outDir": "./public"
   },
   "include": ["src"]
 }
