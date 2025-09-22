@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teacher Panel</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <!-- optional pretty look; if your network blocks CDNs, remove this -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <div class="nav">
+    <strong>🏫 Teacher</strong>
+    <div style="flex:1"></div>
+    <a class="btn secondary" href="/">Home</a>
+  </div>
+
+  <main class="container">
+    <div class="card">
+      <h2>Run Paychecks</h2>
+      <div class="row">
+        <input id="mult" type="number" step="0.1" value="1" />
+        <button class="btn" onclick="payAll()">Pay Everyone</button>
+      </div>
+      <div id="out" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h3>Pay One</h3>
+      <div class="row">
+        <input id="oneId" placeholder="Account ID (e.g., STUDENT_01)" />
+        <input id="oneAmt" type="number" step="0.01" placeholder="(optional) amount" />
+        <button class="btn" onclick="payOne()">Pay</button>
+      </div>
+      <div id="outOne" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h3>Toggle Pay for a Student</h3>
+      <div class="row">
+        <input id="togId" placeholder="Account ID" />
+        <select id="togEnabled">
+          <option value="true">Enable</option>
+          <option value="false">Disable</option>
+        </select>
+        <button class="btn" onclick="togglePay()">Update</button>
+      </div>
+      <div id="outTog" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h3>Set Stipend (Paycheck Amount)</h3>
+      <div class="row">
+        <input id="stipId" placeholder="Account ID" />
+        <input id="stipAmt" type="number" step="0.01" placeholder="e.g., 10.00" />
+        <button class="btn" onclick="setStipend()">Set</button>
+      </div>
+      <div id="outStip" class="muted"></div>
+    </div>
+  </main>
+
+  <footer>
+    <small>&copy; 2025 Class Bank Simulation · Teacher Panel · Author: Anh Tong</small>
+  </footer>
+
+  <script>
+    async function payAll(){
+      const mult = Number(document.getElementById('mult').value || 1);
+      const r = await fetch('/admin/payroll/simple', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ multiplier: mult })
+      });
+      const j = await r.json();
+      document.getElementById('out').textContent = r.ok ? `Paid ${j.paid} students. Total $${j.total}` : 'Error: ' + (j.error||'');
+    }
+
+    async function payOne(){
+      const accountId = document.getElementById('oneId').value.trim();
+      const amountRaw = document.getElementById('oneAmt').value;
+      const amount = amountRaw ? Number(amountRaw) : undefined;
+      const r = await fetch('/admin/payroll/pay-one', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ accountId, amount })
+      });
+      const j = await r.json();
+      document.getElementById('outOne').textContent = r.ok ? 'Paid!' : 'Error: ' + (j.error||'');
+    }
+
+    async function togglePay(){
+      const accountId = document.getElementById('togId').value.trim();
+      const enabled = document.getElementById('togEnabled').value === 'true';
+      const r = await fetch('/admin/payroll/toggle', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ accountId, enabled })
+      });
+      const j = await r.json();
+      document.getElementById('outTog').textContent = r.ok ? `Pay ${enabled ? 'enabled' : 'disabled'} for ${accountId}` : 'Error: ' + (j.error||'');
+    }
+
+    async function setStipend(){
+      const accountId = document.getElementById('stipId').value.trim();
+      const stipend = Number(document.getElementById('stipAmt').value);
+      const r = await fetch('/admin/payroll/set-stipend', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ accountId, stipend })
+      });
+      const j = await r.json();
+      document.getElementById('outStip').textContent = r.ok ? `Stipend set to $${stipend.toFixed(2)} for ${accountId}` : 'Error: ' + (j.error||'');
+    }
+  </script>
+</body>
+</html>

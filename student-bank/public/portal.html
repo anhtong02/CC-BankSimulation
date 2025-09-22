@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Class Bank — Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- REMOVE Pico on this page -->
+    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"> -->
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+        /* Nuke dark areas just on the portal */
+        :root {
+            color-scheme: light;
+        }
+
+        html,
+        body {
+            background: #f2f4f7 !important;
+            color: #111 !important;
+        }
+
+        footer,
+        .footer {
+            display: none !important;
+        }
+
+        section,
+        article {
+            background: transparent !important;
+        }
+
+        * {
+            background-image: none !important;
+        }
+    </style>
+</head>
+
+<body class="portal">
+    <div class="nav">
+        <strong>Cyprus Collective Bank 🦙</strong>
+        <a class="active" href="/portal.html">Portal</a>
+        <a href="/help.html">Help</a>
+        <div style="flex:1"></div>
+        <span id="who" class="muted"></span>
+        <button class="btn secondary" onclick="logout()">Sign out</button>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h1>My Accounts</h1>
+            <div class="grid" id="balances">
+                <!-- tiles -->
+            </div>
+
+            <div class="muted" id="meta"></div>
+
+            <div>
+
+                <button class="btn" onclick="load()" padding="20px" margin="20px" ;>Refresh</button>
+            </div>
+        </div>
+
+
+        <!-- after the existing My Accounts card -->
+        <div class="card">
+            <h2>Credit</h2>
+            <div id="creditBox" class="grid">
+                <!-- filled by renderCredit -->
+            </div>
+            <div class="muted" id="creditNote">Use credit responsibly. Paying on time improves your score.</div>
+        </div>
+        <div class="card">
+            <h2>Pay Credit</h2>
+            <div class="row">
+                <input id="payAmt" type="number" step="0.01" placeholder="Amount to pay" />
+                <button class="btn" onclick="payCredit()">Pay</button>
+            </div>
+            <div id="payStatus" class="muted"></div>
+        </div>
+
+        <div class="card">
+            <h2>Transfer</h2>
+            <div class="row">
+                <select id="from">
+                    <option value="checking">Checking</option>
+                    <option value="savings">Savings</option>
+                    <option value="hysa">HYSA</option>
+                </select>
+                <span style="text-align:center">→</span>
+                <select id="to">
+                    <option value="savings">Savings</option>
+                    <option value="checking">Checking</option>
+                    <option value="hysa">HYSA</option>
+                </select>
+            </div>
+            <div class="row">
+                <input id="amt" type="number" step="0.01" min="0" placeholder="Amount" />
+                <button class="btn" onclick="doTransfer()">Transfer</button>
+            </div>
+            <div id="xferStatus" class="muted"></div>
+        </div>
+
+        <div class="card">
+            <h2>HYSA</h2>
+            <div class="row">
+                <button class="btn" onclick="accrue()">Accrue 1 day interest</button>
+            </div>
+            <div class="muted">For demos: click to simulate a day passing.</div>
+        </div>
+
+        <div class="card">
+            <h2>Loan</h2>
+            <div id="loanBox" class="muted">No loan yet. APR shown below.</div>
+        </div>
+    </div>
+
+    <script src="/auth.js"></script>
+    <script src="/api.js?v=3"></script>
+    <script>
+        async function load() {
+            const id = Auth.get();
+            if (!id) return location.href = '/';
+            document.getElementById('who').textContent = id;
+
+            const a = await getAccount();
+            renderBalances(a);
+            renderLoan(a.loan);
+            renderCredit(a);
+            document.getElementById('meta').textContent =
+                `HYSA APR: ${((a.hysaAPR || 0.045) * 100).toFixed(2)}% • Paycheck (stipend): $${Number(a.stipend || 0).toFixed(2)}`;
+        }
+        function fmt(n) { return '$' + Number(n || 0).toFixed(2); }
+        function renderBalances(a) {
+            const el = document.getElementById('balances');
+            el.innerHTML = `
+        <div class="card"><h3>Checking</h3><div class="money">${fmt(a.checking)}</div></div>
+        <div class="card"><h3>Savings</h3><div class="money">${fmt(a.savings)}</div></div>
+        <div class="card"><h3>HYSA</h3><div class="money">${fmt(a.hysa)}</div></div>
+      `;
+        }
+        function renderCredit(a) {
+            const c = a.credit || {};
+            const box = document.getElementById('creditBox');
+
+            const limit = c.limit ?? 0;
+            const bal = c.balance ?? 0;
+            const due = c.dueAmount ?? 0;
+            const dueDay = c.dueDay ?? 0; // only meaningful if you later use the simulated days
+            const score = a.creditScore ?? 600;
+
+            box.innerHTML = `
+      <div class="card">
+        <h3>Credit Limit</h3>
+        <div class="money">${fmt(limit)}</div>
+      </div>
+      <div class="card">
+        <h3>Current Balance</h3>
+        <div class="money">${fmt(bal)}</div>
+      </div>
+      <div class="card">
+        <h3>Payment Due</h3>
+        <div>${fmt(due)}${dueDay ? ` <span class="badge">Due Day: ${dueDay}</span>` : ''}</div>
+      </div>
+      <div class="card">
+        <h3>Credit Score</h3>
+        <div class="money">${score}</div>
+      </div>
+    `;
+        }
+        function renderLoan(loan) {
+            const el = document.getElementById('loanBox');
+            if (!loan || !loan.active) {
+                el.textContent = `No loan. Example APR: ${loan ? (loan.apr * 100).toFixed(2) : '12.00'}%`;
+            } else {
+                el.innerHTML = `
+          <div>APR: ${(loan.apr * 100).toFixed(2)}%</div>
+          <div>Principal: ${fmt(loan.principal)}</div>
+          <div>Accrued interest: ${fmt(loan.accrued)}</div>
+        `;
+            }
+        }
+        async function doTransfer() {
+            const from = document.getElementById('from').value;
+            const to = document.getElementById('to').value;
+            const raw = document.getElementById('amt').value.trim();
+            const amount = parseFloat(raw);
+            const out = document.getElementById('xferStatus');
+
+            if (!Number.isFinite(amount) || amount <= 0) {
+                out.textContent = 'Enter a positive amount.'; out.className = 'err'; return;
+            }
+            if (from === to) {
+                out.textContent = 'Choose different accounts.'; out.className = 'err'; return;
+            }
+
+            try {
+                console.log('POST /transfer payload =', { accountId: Auth.get(), from, to, amount }); // debug
+                await window.postTransfer(from, to, amount);   // 👈 call the global
+                out.textContent = 'Transferred!'; out.className = 'ok';
+                const a = await window.getAccount();
+                renderBalances(a); renderLoan(a.loan);
+            } catch (e) {
+                console.error('Transfer failed', e);
+                out.textContent = 'Error: ' + (e?.message || JSON.stringify(e));
+                out.className = 'err';
+            }
+        }
+        window.doTransfer = doTransfer; // 👈 expose handler
+
+
+        async function accrue() {
+            await accrueHYSA(1);
+            const a = await getAccount(); renderBalances(a); renderLoan(a.loan);
+        }
+        async function payCredit() {
+            const amount = Number(document.getElementById('payAmt').value);
+            const out = document.getElementById('payStatus');
+            if (!amount || amount <= 0) { out.textContent = 'Enter a positive amount.'; out.className = 'err'; return; }
+
+            try {
+                const j = await payCreditApi(amount);   // ✅ use api.js helper
+                out.textContent = `Paid $${amount.toFixed(2)}. Remaining credit balance: $${j.creditBalance.toFixed(2)}`;
+                out.className = 'ok';
+                const a = await getAccount(); renderBalances(a); renderCredit(a);
+            } catch (e) {
+                out.textContent = "Error: " + e.message;
+                out.className = 'err';
+            }
+        }
+
+
+        function logout() { Auth.clear(); location.href = '/'; }
+        load();
+    </script>
+    <footer>
+        <small>&copy; 2025 Cyprus Bank Simulation · For educational use only · </small>
+        <small> Author: Anh Tong - CC Youth Leader</small>
+
+    </footer>
+</body>
+
+</html>
