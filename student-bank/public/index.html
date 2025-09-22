@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Class Bank — Sign In</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Pretty styles -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="nav">
+    <strong>Cyprus Collective Bank 🦙</strong>
+    <div style="flex:1"></div>
+    <a href="/help.html">Help</a>
+  </div>
+
+  <main class="container">
+    <div class="card">
+      <h1>Welcome</h1>
+      <p class="muted">Use your chosen ID to sign in. You can also register a new ID.</p>
+    </div>
+
+    <div class="card">
+      <h2>Sign In</h2>
+      <div class="grid">
+        <input id="loginId" placeholder="Your ID" />
+        <button class="btn" onclick="login()">Sign In</button>
+      </div>
+      <div id="loginStatus" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h2>Sign Up</h2>
+      <div class="grid">
+        <input id="regId" placeholder="Pick an ID" />
+        <input id="regName" placeholder="Your name" />
+        <button class="btn" onclick="signup()">Create Account</button>
+      </div>
+      <div id="regStatus" class="muted"></div>
+    </div>
+
+
+  </main>
+  
+  <!-- Load helpers first -->
+  <script src="/auth.js"></script>
+  <script src="/api.js"></script>
+
+  <!-- Then page logic -->
+  <script>
+    async function login() {
+      const id = document.getElementById('loginId').value.trim();
+      const out = document.getElementById('loginStatus');
+      if (!id) { out.textContent = 'Enter your ID'; out.className='err'; return; }
+      try {
+        Auth.save(id);
+        await fetch('/account/' + encodeURIComponent(id)).then(r => {
+          if (!r.ok) throw new Error('not found');
+        });
+        out.textContent = 'Success! Redirecting...'; out.className='ok';
+        location.href = '/portal.html';
+      } catch {
+        Auth.clear();
+        out.textContent = 'Not found. Did you register?'; out.className='err';
+      }
+    }
+
+    async function signup() {
+      const id = document.getElementById('regId').value.trim();
+      const name = document.getElementById('regName').value.trim();
+      const out = document.getElementById('regStatus');
+      if (!id || !name) { out.textContent = 'Provide ID and name.'; out.className='err'; return; }
+      try {
+        await registerAccount(id, name);   // defined in api.js
+        out.textContent = 'Registered! You can sign in now.'; out.className='ok';
+        document.getElementById('loginId').value = id;
+      } catch (e) {
+        out.textContent = 'Error: ' + e.message; out.className='err';
+      }
+    }
+  </script>
+   <footer>
+    <small>&copy; 2025 Cyprus Bank Simulation · For educational use only · </small>
+    <small> Author: Anh Tong - CC Youth Leader</small>
+
+  </footer>
+</body>
+</html>

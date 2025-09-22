@@ -1,5 +1,3 @@
 {
-  "projects": {
-    "default": "cc-banksimulation"
-  }
+  "projects": { "default": "cc-banksimulation" }
 }

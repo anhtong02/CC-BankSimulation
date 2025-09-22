@@ -1,9 +1,13 @@
 {
   "hosting": {
-    "public": "student-bank/public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "public": "/public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "redirects": [
-      { "source": "/", "destination": "/login.html", "type": 301 }
+      { "source": "/", "destination": "/index.html", "type": 302 }
     ]
   }
 }
